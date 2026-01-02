@@ -11,4 +11,8 @@ studentApi.interceptors.request.use(config => {
   return config;
 });
 
+export const createStudent = async(student) => {
+  const res = await studentApi.post("",student);
+  return res.data;
+}
 export default studentApi;
