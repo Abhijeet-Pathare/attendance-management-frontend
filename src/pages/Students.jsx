@@ -1,5 +1,4 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
 import studentApi from "../api/studentApi";
 import {
   Container,
@@ -13,25 +12,51 @@ import {
   Paper,
 } from "@mui/material";
 
-const fetchStudents = async () => {
-  const { data } = await studentApi.get(""); // GET /students
-  return data;
-};
-
 const Students = () => {
-  const { data: students, isLoading, isError } = useQuery({
-    queryKey: ["students"],
-    queryFn: fetchStudents
-  });
+  const [students, setStudents] = useState([]); // always array
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await studentApi.get(""); // GET /students
+        setStudents(res.data || []); // safety fallback
+      } catch (err) {
+        console.error("Error fetching students:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchStudents();
+  }, []);
 
-  if (isLoading) return <Typography>Loading...</Typography>;
-  if (isError) return <Typography>Error fetching students!</Typography>;
+  if (loading) {
+    return (
+      <Container sx={{ mt: 5 }}>
+        <Typography>Loading...</Typography>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ mt: 5 }}>
+        <Typography color="error">
+          Error fetching students!
+        </Typography>
+      </Container>
+    );
+  }
 
   return (
     <Container sx={{ mt: 5 }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>Student Details</Typography>
+      <Typography variant="h4" sx={{ mb: 2 }}>
+        Student Details
+      </Typography>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -42,15 +67,24 @@ const Students = () => {
               <TableCell>Phone</TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
-            {students.map((student) => (
-              <TableRow key={student.id}>
-                <TableCell>{student.id}</TableCell>
-                <TableCell>{student.name}</TableCell>
-                <TableCell>{student.email}</TableCell>
-                <TableCell>{student.phone}</TableCell>
+            {students.length > 0 ? (
+              students.map((student) => (
+                <TableRow key={student.id}>
+                  <TableCell>{student.id}</TableCell>
+                  <TableCell>{student.name}</TableCell>
+                  <TableCell>{student.email}</TableCell>
+                  <TableCell>{student.phone}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  No students found
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </TableContainer>

@@ -1,6 +1,5 @@
 // src/pages/AttendanceReport.jsx
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
 import { getBatchReport } from "../api/attendanceReportApi";
 import { getBatches } from "../api/batchApi";
 import {
@@ -27,22 +26,46 @@ import { PieChart, Pie, Cell, Legend, Tooltip } from "recharts";
 const COLORS = ["#4caf50", "#f44336", "#ff9800"];
 
 const AttendanceReport = () => {
+  const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [fetchKey, setFetchKey] = useState(0); // to trigger query manually
 
-  // Fetch all batches
-  const { data: batches } = useQuery({
-    queryKey: ["batches"],
-    queryFn: getBatches,
-  });
+  const [attendance, setAttendance] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
-  // Fetch attendance for selected batch and date
-  const { data: attendance, isLoading, isError } = useQuery({
-    queryKey: ["attendance", selectedBatch, date, fetchKey],
-    queryFn: () => getBatchReport(selectedBatch),
-    enabled: !!selectedBatch, // only fetch when batch selected
-  });
+  /* ---------------- Fetch all batches on page load ---------------- */
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const data = await getBatches();
+        setBatches(data || []);
+      } catch (err) {
+        console.error("Error fetching batches:", err);
+      }
+    };
+
+    fetchBatches();
+  }, []);
+
+  /* ---------------- Fetch attendance manually ---------------- */
+  const handleFetch = async () => {
+    if (!selectedBatch) return;
+
+    setLoading(true);
+    setError(false);
+
+    try {
+      const data = await getBatchReport(selectedBatch, date);
+      setAttendance(data);
+    } catch (err) {
+      console.error("Error fetching attendance:", err);
+      setError(true);
+      setAttendance(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Convert attendance response to chart-friendly array
   const chartData = attendance
@@ -53,22 +76,21 @@ const AttendanceReport = () => {
       ]
     : [];
 
-  const handleFetch = () => setFetchKey(prev => prev + 1);
-
   return (
     <Container sx={{ mt: 5 }}>
       <Typography variant="h4" sx={{ mb: 2 }}>
         Daily Attendance Report
       </Typography>
 
-      <FormControl sx={{ mr: 2, minWidth: 200 }}>
+      {/* Batch selector */}
+      <FormControl sx={{ mr: 2, minWidth: 220 }}>
         <InputLabel>Batch</InputLabel>
         <Select
           value={selectedBatch}
           label="Batch"
           onChange={(e) => setSelectedBatch(e.target.value)}
         >
-          {batches?.map((batch) => (
+          {batches.map((batch) => (
             <MenuItem key={batch.id} value={batch.id}>
               {batch.subject} ({batch.teacherName})
             </MenuItem>
@@ -76,21 +98,34 @@ const AttendanceReport = () => {
         </Select>
       </FormControl>
 
+      {/* Date picker */}
       <TextField
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-        sx={{ mb: 2 }}
+        sx={{ mr: 2, mb: 2 }}
       />
 
-      <Button variant="contained" onClick={handleFetch} sx={{ mb: 2 }}>
+      {/* Fetch button */}
+      <Button
+        variant="contained"
+        onClick={handleFetch}
+        disabled={!selectedBatch || loading}
+        sx={{ mb: 2 }}
+      >
         Fetch Attendance
       </Button>
 
-      {isLoading && <Typography>Loading...</Typography>}
-      {isError && <Typography>Error fetching attendance!</Typography>}
+      {/* Status messages */}
+      {loading && <Typography>Loading...</Typography>}
+      {error && (
+        <Typography color="error">
+          Error fetching attendance!
+        </Typography>
+      )}
 
-      {attendance && (
+      {/* Report */}
+      {attendance && !loading && (
         <>
           {/* Chart */}
           <PieChart width={400} height={300}>
@@ -101,11 +136,13 @@ const AttendanceReport = () => {
               cx="50%"
               cy="50%"
               outerRadius={80}
-              fill="#8884d8"
               label
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                />
               ))}
             </Pie>
             <Tooltip />

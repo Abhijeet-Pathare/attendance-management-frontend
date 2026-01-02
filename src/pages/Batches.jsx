@@ -1,5 +1,4 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
 import { getBatches } from "../api/batchApi";
 import {
   Container,
@@ -14,21 +13,50 @@ import {
 } from "@mui/material";
 
 const Batches = () => {
-  const { data: batches, isLoading, isError } = useQuery({
-    queryKey: ["batches"],
-    queryFn: getBatches,
-  });
+  const [batches, setBatches] = useState([]); // always an array
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  if (isLoading) return <Typography>Loading...</Typography>;
-  if (isError) return <Typography>Error fetching batches!</Typography>;
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const data = await getBatches();
+        setBatches(data || []); // safety fallback
+      } catch (err) {
+        console.error("Error fetching batches:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const batchList = batches || [];
+    fetchBatches();
+  }, []);
+
+  if (loading) {
+    return (
+      <Container sx={{ mt: 5 }}>
+        <Typography>Loading...</Typography>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ mt: 5 }}>
+        <Typography color="error">
+          Error fetching batches!
+        </Typography>
+      </Container>
+    );
+  }
 
   return (
     <Container sx={{ mt: 5 }}>
       <Typography variant="h4" sx={{ mb: 2 }}>
         Batch Details
       </Typography>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -43,9 +71,10 @@ const Batches = () => {
               <TableCell>Status</TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
-            {batchList.length > 0 ? (
-              batchList.map((batch) => (
+            {batches.length > 0 ? (
+              batches.map((batch) => (
                 <TableRow key={batch.id}>
                   <TableCell>{batch.id}</TableCell>
                   <TableCell>{batch.subject}</TableCell>
