@@ -11,8 +11,16 @@ studentApi.interceptors.request.use(config => {
   return config;
 });
 
-export const createStudent = async(student) => {
-  const res = await studentApi.post("",student);
+/* ---------- CREATE ---------- */
+export const createStudent = async (student) => {
+  const res = await studentApi.post("", student);
   return res.data;
-}
+};
+
+/* ---------- DELETE ---------- */
+export const deleteStudent = async (id) => {
+  const res = await studentApi.delete(`/${id}`);
+  return res.data;
+};
+
 export default studentApi;
